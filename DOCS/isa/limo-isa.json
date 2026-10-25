@@ -1,0 +1,23 @@
+{
+  "version": "2.0",
+  "frozenAt": "M2",
+  "formats": ["R", "I", "S", "B"],
+  "registers": { "count": 32, "width": 32, "zero": "lehe", "pc": "mokopu" },
+  "instructions": [
+    { "mnemonic": "kopanya",    "rv32i": "add",  "fmt": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000" },
+    { "mnemonic": "tlosa",      "rv32i": "sub",  "fmt": "R", "opcode": "0110011", "funct3": "000", "funct7": "0100000" },
+    { "mnemonic": "eketsa",     "rv32i": "addi", "fmt": "I", "opcode": "0010011", "funct3": "000" },
+    { "mnemonic": "kapa",       "rv32i": "or",   "fmt": "R", "opcode": "0110011", "funct3": "110", "funct7": "0000000" },
+    { "mnemonic": "le",         "rv32i": "and",  "fmt": "R", "opcode": "0110011", "funct3": "111", "funct7": "0000000" },
+    { "mnemonic": "suthumetsa", "rv32i": "slli", "fmt": "I", "opcode": "0010011", "funct3": "001", "funct7": "0000000" },
+    { "mnemonic": "bofa",       "rv32i": "lw",   "fmt": "I", "opcode": "0000011", "funct3": "010" },
+    { "mnemonic": "boloka",     "rv32i": "sw",   "fmt": "S", "opcode": "0100011", "funct3": "010" },
+    { "mnemonic": "lekana",     "rv32i": "beq",  "fmt": "B", "opcode": "1100011", "funct3": "000" },
+    { "mnemonic": "ekholo",     "rv32i": "bge",  "fmt": "B", "opcode": "1100011", "funct3": "101" },
+    { "mnemonic": "qhoma",      "rv32i": "jalr", "fmt": "I", "opcode": "1100111", "funct3": "000" }
+  ],
+  "pseudoinstructions": [
+    { "mnemonic": "bofahh",   "expansion": "eketsa {rd}, lehe, {imm}" },
+    { "mnemonic": "chechisa", "expansion": "eketsa {rd}, {rs}, 0" }
+  ]
+}
