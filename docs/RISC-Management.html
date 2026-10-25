@@ -93,7 +93,6 @@ qhoma lehe, 0(letsibolo)</textarea>
         <li><code>bofahh rd, imm</code> — pseudoinstruction</li>
         <li><code>chechisa rd, rs</code> — pseudoinstruction</li>
       </ul>
-      <p class="muted">This page assembles your program (RV32I-equivalent encodings) and then runs it one instruction at a time. It shows the ISA behaviour only; the five-stage pipeline view comes in the next milestone.</p>
     </section>
   </div>
   <div class="right-col">
@@ -124,9 +123,8 @@ qhoma lehe, 0(letsibolo)</textarea>
 </main>
 <footer>LIMO ISA simulator · Simple learning project · PC is measured in bytes; each instruction occupies 4 bytes. Start state: mokou = 0x400, letsibolo = end of program.</footer>
 <script>
-// LIMO assembler (frozen ISA, M1 + M2). Works in Node (require) and browser (window.LIMO).
 (function (root) {
-  // ---- registers: x0..x31 and Sesotho names (M1 section 2.2) ----
+  //  registers: x0..x31 and Sesotho names 
   const REGS = {};
   const names = new Array(32);
   names[0] = 'lehe'; names[1] = 'letsibolo'; names[2] = 'mokou'; names[3] = 'sephara'; names[4] = 'khoele';
@@ -137,7 +135,7 @@ qhoma lehe, 0(letsibolo)</textarea>
   [28, 29, 30, 31].forEach((r, i) => names[r] = 'nakoana' + (i + 4));
   names.forEach((n, i) => { REGS[n] = i; REGS['x' + i] = i; });
 
-  // ---- instruction table (M1 section 2.4; RV32I-equivalent encodings) ----
+  // ---- instruction table 
   const OPS = {
     kopanya:   { f: 'R', op: 0x33, f3: 0, f7: 0x00 },
     tlosa:     { f: 'R', op: 0x33, f3: 0, f7: 0x20 },
