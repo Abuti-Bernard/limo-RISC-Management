@@ -1,0 +1,20 @@
+{
+  "name": "limo-risc-management",
+  "version": "1.0.0",
+  "description": "LIMO — a Sesotho-language processor derived from RISC-V, with an online pipeline simulator",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "assemble": "node src/assembler/cli.js"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
+  },
+  "author": "RISC-Management",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Abuti-Bernard/limo-RISC-Management.git"
+  }
+}
