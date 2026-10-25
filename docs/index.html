@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIMO Assembly Simulator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, sans-serif; background: #f4f5f6; color: #222; }
+  header { background: #fff; border-bottom: 1px solid #d8dadd; padding: 18px 24px; }
+  header h1 { margin: 0 0 5px; font-size: 24px; font-weight: 600; }
+  header p { margin: 0; color: #666; font-size: 14px; }
+  main { max-width: 1250px; margin: 20px auto; padding: 0 16px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(330px, .9fr); gap: 16px; }
+  section { background: #fff; border: 1px solid #d9dcdf; border-radius: 6px; padding: 16px; min-width: 0; }
+  h2 { font-size: 17px; margin: 0 0 12px; font-weight: 600; }
+  .muted { color: #666; font-size: 13px; line-height: 1.5; }
+  textarea, select, input { font: inherit; }
+  textarea { width: 100%; min-height: 340px; resize: vertical; border: 1px solid #c9cdd1; border-radius: 4px; padding: 12px; font-family: Consolas, monospace; font-size: 14px; line-height: 1.5; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  button { background: #ededed; border: 1px solid #c7c7c7; border-radius: 4px; padding: 8px 13px; cursor: pointer; color: #222; }
+  button.primary { background: #2f3438; color: white; border-color: #2f3438; }
+  button:hover { filter: brightness(.97); }
+  .status { padding: 9px 10px; background: #f6f6f6; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 35px; white-space: pre-wrap; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stat { border: 1px solid #e0e0e0; border-radius: 4px; padding: 9px; }
+  .stat span { display: block; color: #666; font-size: 12px; margin-bottom: 5px; }
+  .stat strong { font-size: 18px; font-weight: 600; }
+  .table-wrap { overflow: auto; max-height: 300px; border: 1px solid #e1e1e1; border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid #e8e8e8; white-space: nowrap; }
+  th { background: #f7f7f7; position: sticky; top: 0; }
+  .right-col { display: flex; flex-direction: column; gap: 16px; }
+  .registers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-height: 370px; overflow: auto; }
+  .reg { border: 1px solid #e1e1e1; padding: 7px; border-radius: 3px; min-width: 0; }
+  .reg b { display: block; font-size: 12px; font-weight: 600; }
+  .reg small { display: block; color: #777; font-size: 10px; overflow-wrap: anywhere; margin: 3px 0; }
+  .reg span { font-family: Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+  .memory { max-height: 180px; overflow: auto; }
+  .help { columns: 2; column-gap: 25px; margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+  code { font-family: Consolas, monospace; }
+  .f0{background:#c0392b33}.f1{background:#2980b933}.f2{background:#27ae6033}.f3{background:#f39c1233}.f4{background:#8e44ad33}.f5{background:#7f8c8d33}
+  td.bin span{padding:0 2px;font-family:Consolas,monospace}
+  tr.cur td{background:#fff3c4;font-weight:600}
+  .errline{color:#a61b1b}
+  footer { max-width: 1250px; margin: 0 auto 24px; padding: 0 16px; color: #777; font-size: 12px; }
+  @media (max-width: 850px) { main { grid-template-columns: 1fr; } .registers { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+  @media (max-width: 450px) { header { padding: 16px; } .registers { grid-template-columns: repeat(3, minmax(0,1fr)); } .help { columns: 1; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>LIMO Assembly Simulator</h1>
+  <p>A small browser-based simulator for the LIMO ISA: Sesotho instructions and registers</p>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>Assembly program</h2>
+      <p class="muted">Write one instruction per line. Labels end with a colon. Use # for comments. Register names can be x0–x31 or their LIMO Sesotho names.</p>
+      <textarea id="program" spellcheck="false"># Add two numbers and save the result
+bofahh sephetho0, 5
+bofahh sephetho1, 3
+kopanya sephetho2, sephetho0, sephetho1
+chechisa sephetho0, sephetho2
+qhoma lehe, 0(letsibolo)</textarea>
+      <div class="buttons">
+        <button class="primary" id="runBtn">Run program</button>
+        <button id="stepBtn">Step</button>
+        <button id="resetBtn">Reset</button>
+        <button id="exampleBtn">Load example</button>
+      </div>
+      <div class="status" id="status">Ready. Press Run program or Step.</div>
+    </section>
+    <section style="margin-top:16px">
+      <h2>Machine code</h2>
+      <p class="muted">Fields, left to right: funct7 or imm · rs2 · rs1 · funct3 · rd · opcode (colours are only a visual aid; the field order is the same in every row). "NEXT" marks the instruction that runs next.</p>
+      <div class="table-wrap"><table><thead><tr><th></th><th>PC</th><th>Hex</th><th>Binary</th><th>Source</th></tr></thead><tbody id="listing"></tbody></table></div>
+    </section>
+    <section style="margin-top:16px">
+      <h2>Supported instructions</h2>
+      <ul class="help">
+        <li><code>kopanya rd, rs1, rs2</code> — add</li>
+        <li><code>tlosa rd, rs1, rs2</code> — subtract</li>
+        <li><code>eketsa rd, rs1, imm</code> — add immediate</li>
+        <li><code>kapa rd, rs1, rs2</code> — OR</li>
+        <li><code>le rd, rs1, rs2</code> — AND</li>
+        <li><code>suthumetsa rd, rs1, shamt</code> — shift left</li>
+        <li><code>bofa rd, imm(rs1)</code> — load word</li>
+        <li><code>boloka rs2, imm(rs1)</code> — store word</li>
+        <li><code>lekana rs1, rs2, label</code> — branch if equal</li>
+        <li><code>ekholo rs1, rs2, label</code> — branch if signed ≥</li>
+        <li><code>qhoma rd, imm(rs1)</code> — jump via register</li>
+        <li><code>bofahh rd, imm</code> — pseudoinstruction</li>
+        <li><code>chechisa rd, rs</code> — pseudoinstruction</li>
+      </ul>
+      <p class="muted">This page assembles your program (RV32I-equivalent encodings) and then runs it one instruction at a time. It shows the ISA behaviour only; the five-stage pipeline view comes in the next milestone.</p>
+    </section>
+  </div>
+  <div class="right-col">
+    <section>
+      <h2>CPU state</h2>
+      <div class="stats">
+        <div class="stat"><span>Program counter (PC)</span><strong id="pc">0</strong></div>
+        <div class="stat"><span>Instructions run</span><strong id="count">0</strong></div>
+        <div class="stat"><span>Program lines</span><strong id="total">0</strong></div>
+      </div>
+      <h2>Registers</h2>
+      <div class="registers" id="registers"></div>
+    </section>
+    <section>
+      <h2>Memory (word addresses)</h2>
+      <p class="muted">Memory is byte-addressed and little-endian in the ISA. This view groups stored 32-bit words by address.</p>
+      <div class="table-wrap memory">
+        <table><thead><tr><th>Address</th><th>Value</th></tr></thead><tbody id="memory"></tbody></table>
+      </div>
+    </section>
+    <section>
+      <h2>Execution log</h2>
+      <div class="table-wrap" style="max-height:220px">
+        <table><thead><tr><th>Step</th><th>PC</th><th>Instruction</th></tr></thead><tbody id="log"></tbody></table>
+      </div>
+    </section>
+  </div>
+</main>
+<footer>LIMO ISA simulator · Simple learning project · PC is measured in bytes; each instruction occupies 4 bytes. Start state: mokou = 0x400, letsibolo = end of program.</footer>
+<script>
+// LIMO assembler (frozen ISA, M1 + M2). Works in Node (require) and browser (window.LIMO).
+(function (root) {
+  // ---- registers: x0..x31 and Sesotho names (M1 section 2.2) ----
+  const REGS = {};
+  const names = new Array(32);
+  names[0] = 'lehe'; names[1] = 'letsibolo'; names[2] = 'mokou'; names[3] = 'sephara'; names[4] = 'khoele';
+  [5, 6, 7].forEach((r, i) => names[r] = 'nakoana' + (i + 1));
+  [8, 9].forEach((r, i) => names[r] = 'letsete' + i);
+  for (let i = 0; i < 8; i++) names[10 + i] = 'sephetho' + i;
+  for (let i = 0; i < 10; i++) names[18 + i] = 'letsete' + (i + 2);
+  [28, 29, 30, 31].forEach((r, i) => names[r] = 'nakoana' + (i + 4));
+  names.forEach((n, i) => { REGS[n] = i; REGS['x' + i] = i; });
+
+  // ---- instruction table (M1 section 2.4; RV32I-equivalent encodings) ----
+  const OPS = {
+    kopanya:   { f: 'R', op: 0x33, f3: 0, f7: 0x00 },
+    tlosa:     { f: 'R', op: 0x33, f3: 0, f7: 0x20 },
+    kapa:      { f: 'R', op: 0x33, f3: 6, f7: 0x00 },
+    le:        { f: 'R', op: 0x33, f3: 7, f7: 0x00 },
+    eketsa:    { f: 'I', op: 0x13, f3: 0 },
+    suthumetsa:{ f: 'SH', op: 0x13, f3: 1, f7: 0x00 },
+    bofa:      { f: 'L', op: 0x03, f3: 2 },
+    boloka:    { f: 'S', op: 0x23, f3: 2 },
+    lekana:    { f: 'B', op: 0x63, f3: 0 },
+    ekholo:    { f: 'B', op: 0x63, f3: 5 },
+    qhoma:     { f: 'J', op: 0x67, f3: 0 },
+  };
+  const PSEUDO = { bofahh: 'li', chechisa: 'mv' };
+
+  class AsmError extends Error { constructor(line, msg) { super(msg); this.line = line; } }
+
+  function parseReg(tok, line) {
+    const r = REGS[tok];
+    if (r === undefined) throw new AsmError(line, `"${tok}" is not a register. Use x0-x31 or a Sesotho name such as sephetho0 or letsete1.`);
+    return r;
+  }
+  function parseImm(tok, line, lo, hi, what) {
+    if (!/^[-+]?(0x[0-9a-f]+|\d+)$/i.test(tok)) throw new AsmError(line, `"${tok}" is not a number. Write ${what} as decimal (12) or hex (0xC).`);
+    const neg = tok[0] === '-';
+    const v = parseInt(tok.replace(/^[-+]/, ''), tok.match(/0x/i) ? 16 : 10) * (neg ? -1 : 1);
+    if (v < lo || v > hi) throw new AsmError(line, `${what} ${v} is out of range (${lo} to ${hi}).`);
+    return v;
+  }
+  function parseMem(tok, line) {
+    const m = tok.match(/^([-+]?(?:0x[0-9a-f]+|\d+))\(([^)]+)\)$/i);
+    if (!m) throw new AsmError(line, `"${tok}" should look like offset(register), for example 8(mokou).`);
+    return [parseImm(m[1], line, -2048, 2047, 'offset'), parseReg(m[2].trim(), line)];
+  }
+  const bits = (v, hi, lo) => (v >>> lo) & ((1 << (hi - lo + 1)) - 1);
+  const encR = (o, rd, a, b) => ((o.f7 << 25) | (b << 20) | (a << 15) | (o.f3 << 12) | (rd << 7) | o.op) >>> 0;
+  const encI = (o, rd, a, imm) => (((imm & 0xfff) << 20) | (a << 15) | (o.f3 << 12) | (rd << 7) | o.op) >>> 0;
+  const encS = (o, rs2, a, imm) => ((bits(imm, 11, 5) << 25) | (rs2 << 20) | (a << 15) | (o.f3 << 12) | (bits(imm, 4, 0) << 7) | o.op) >>> 0;
+  const encB = (o, a, b, imm) => ((bits(imm, 12, 12) << 31) | (bits(imm, 10, 5) << 25) | (b << 20) | (a << 15) |
+    (o.f3 << 12) | (bits(imm, 4, 1) << 8) | (bits(imm, 11, 11) << 7) | o.op) >>> 0;
+
+  function splitOperands(s) { return s.trim() === '' ? [] : s.split(',').map(x => x.trim()); }
+
+  function assemble(src) {
+    const errors = [], items = [], labels = {};
+    let pc = 0;
+    src.split(/\r?\n/).forEach((raw, i) => {
+      const line = i + 1;
+      let t = raw.replace(/(#|\/\/).*$/, '').trim();
+      try {
+        let m;
+        while ((m = t.match(/^([A-Za-z_][A-Za-z0-9_']*):\s*(.*)$/))) {   // apostrophes allowed inside words
+          if (m[1] in labels) throw new AsmError(line, `Label "${m[1]}" is defined twice.`);
+          labels[m[1]] = pc; t = m[2];
+        }
+        if (!t) return;
+        const sp = t.search(/\s/);
+        const mn = (sp < 0 ? t : t.slice(0, sp)), ops = splitOperands(sp < 0 ? '' : t.slice(sp));
+        if (!(mn in OPS) && !(mn in PSEUDO)) throw new AsmError(line, `Unknown instruction "${mn}". Check the glossary for the 11 LIMO instructions and 2 pseudo-instructions.`);
+        items.push({ line, mn, ops, pc, text: t }); pc += 4;
+      } catch (e) { if (e instanceof AsmError) errors.push({ line: e.line, message: e.message }); else throw e; }
+    });
+
+    const words = [], listing = [];
+    for (const it of items) {
+      try {
+        let { mn, ops } = it; const { line } = it;
+        let real = mn;
+        if (mn === 'bofahh') { need(ops, 2, mn, line, 'bofahh rd, constant'); ops = [ops[0], 'lehe', ops[1]]; real = 'eketsa'; }
+        if (mn === 'chechisa') { need(ops, 2, mn, line, 'chechisa rd, rs'); ops = [ops[0], ops[1], '0']; real = 'eketsa'; }
+        const o = OPS[real]; let w;
+        if (o.f === 'R') { need(ops, 3, mn, line, `${mn} rd, rs1, rs2`); w = encR(o, parseReg(ops[0], line), parseReg(ops[1], line), parseReg(ops[2], line)); }
+        else if (o.f === 'I') { need(ops, 3, mn, line, `${mn} rd, rs1, imm`); w = encI(o, parseReg(ops[0], line), parseReg(ops[1], line), parseImm(ops[2], line, -2048, 2047, 'immediate')); }
+        else if (o.f === 'SH') { need(ops, 3, mn, line, `${mn} rd, rs1, shamt`); w = encR({ ...o, f7: 0 }, parseReg(ops[0], line), parseReg(ops[1], line), parseImm(ops[2], line, 0, 31, 'shift amount')); }
+        else if (o.f === 'L' || o.f === 'J') { need(ops, 2, mn, line, `${mn} rd, offset(rs1)`); const [im, r1] = parseMem(ops[1], line); w = encI(o, parseReg(ops[0], line), r1, im); }
+        else if (o.f === 'S') { need(ops, 2, mn, line, `${mn} rs2, offset(rs1)`); const [im, r1] = parseMem(ops[1], line); w = encS(o, parseReg(ops[0], line), r1, im); }
+        else if (o.f === 'B') {
+          need(ops, 3, mn, line, `${mn} rs1, rs2, label`);
+          let off;
+          if (ops[2] in labels) off = labels[ops[2]] - it.pc;
+          else if (/^[-+]?(0x[0-9a-f]+|\d+)$/i.test(ops[2])) off = parseImm(ops[2], line, -4096, 4094, 'branch offset');
+          else throw new AsmError(line, `Label "${ops[2]}" is not defined anywhere in the program.`);
+          if (off % 2 || off < -4096 || off > 4094) throw new AsmError(line, `Branch to "${ops[2]}" is too far (${off} bytes; limit is -4096 to 4094).`);
+          w = encB(o, parseReg(ops[0], line), parseReg(ops[1], line), off);
+        }
+        words.push(w >>> 0);
+        listing.push({ line, pc: it.pc, hex: '0x' + (w >>> 0).toString(16).padStart(8, '0').toUpperCase(), bin: (w >>> 0).toString(2).padStart(32, '0'), source: it.text });
+      } catch (e) { if (e instanceof AsmError) errors.push({ line: e.line, message: e.message }); else throw e; }
+    }
+    errors.sort((a, b) => a.line - b.line);
+    return { words, listing, labels, errors, ok: errors.length === 0 };
+  }
+  function need(ops, n, mn, line, form) {
+    if (ops.length !== n) throw new AsmError(line, `"${mn}" needs ${n} operands: ${form}. You wrote ${ops.length}.`);
+  }
+  const api = { assemble, REGS, REG_NAMES: names, OPS };
+  if (typeof module !== 'undefined') module.exports = api; else root.LIMO = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const registerNames = [
+  "lehe","letsibolo","mokou","sephara","khoele",
+  "nakoana1","nakoana2","nakoana3","letsete0","letsete1",
+  "sephetho0","sephetho1","sephetho2","sephetho3","sephetho4","sephetho5","sephetho6","sephetho7",
+  "letsete2","letsete3","letsete4","letsete5","letsete6","letsete7","letsete8","letsete9","letsete10","letsete11",
+  "nakoana4","nakoana5","nakoana6","nakoana7"
+];
+const aliasNames = ["zero","ra","sp","gp","tp","t0","t1","t2","s0","s1","a0","a1","a2","a3","a4","a5","a6","a7","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","t3","t4","t5","t6"];
+const examples = [
+`# Add two numbers
+bofahh sephetho0, 5
+bofahh sephetho1, 3
+kopanya sephetho2, sephetho0, sephetho1
+chechisa sephetho0, sephetho2
+qhoma lehe, 0(letsibolo)`,
+`# Sum of 0..10 -> sephetho0 = 55
+bofahh letsete0, 0
+bofahh sephetho0, 0
+bofahh sephetho1, 10
+loop: kopanya letsete0, letsete0, sephetho0
+eketsa sephetho0, sephetho0, 1
+ekholo sephetho1, sephetho0, loop
+chechisa sephetho0, letsete0
+qhoma lehe, 0(letsibolo)`,
+`# (a+b)^2 with a=5, b=3 -> sephetho0 = 64, memory[1008] = 64
+bofahh sephetho0, 5
+bofahh sephetho1, 3
+kopanya sephetho2, sephetho0, sephetho1
+bofahh letsete0, 0
+bofahh letsete1, 0
+chechisa nakoana1, sephetho2
+loop_m: kopanya letsete0, letsete0, sephetho2
+eketsa letsete1, letsete1, 1
+lekana letsete1, nakoana1, done
+ekholo nakoana1, letsete1, loop_m
+done: eketsa mokou, mokou, -16
+boloka letsete0, 0(mokou)
+chechisa sephetho0, letsete0
+eketsa mokou, mokou, 16
+qhoma lehe, 0(letsibolo)`,
+`# Compare 50 with 80 -> sephetho0 = 2 (less)
+bofahh sephetho0, 50
+bofahh sephetho1, 80
+lekana sephetho0, sephetho1, EQUAL
+ekholo sephetho0, sephetho1, GREATER
+LESS: bofahh sephetho0, 2
+qhoma lehe, 0(letsibolo)
+GREATER: bofahh sephetho0, 1
+qhoma lehe, 0(letsibolo)
+EQUAL: bofahh sephetho0, 0
+qhoma lehe, 0(letsibolo)`];
+let exampleIndex = 1;
+let listing = [], regs, memory, instructions, labels, pc, executed, halted, logs, lastPCs;
+function signed(n) { return n | 0; }
+function u32(n) { return n >>> 0; }
+function cleanLine(line) { return line.replace(/#.*/, "").replace(/\/\/.*/, "").trim(); }
+function splitArgs(s) { return s.split(",").map(x => x.trim()).filter(x => x.length); }
+function parseRegister(s) {
+  // parseOffset already converts base registers to numeric register indexes.
+  if (typeof s === "number" && Number.isInteger(s) && s >= 0 && s < 32) return s;
+  if (typeof s !== "string") throw new Error("Invalid register: " + s);
+  const v = s.trim().toLowerCase();
+  let m = v.match(/^x(\d|[12]\d|3[01])$/);
+  if (m) return Number(v.slice(1));
+  let i = registerNames.indexOf(v);
+  if (i >= 0) return i;
+  i = aliasNames.indexOf(v);
+  if (i >= 0) return i;
+  throw new Error("Unknown register: " + s);
+}
+function numberValue(s) {
+  const v = s.trim();
+  if (/^-?0x[0-9a-f]+$/i.test(v)) {
+    const neg = v.startsWith("-");
+    const n = parseInt(neg ? v.slice(1) : v, 16);
+    return neg ? -n : n;
+  }
+  if (!/^[-+]?\d+$/.test(v)) throw new Error("Invalid number: " + s);
+  return Number(v);
+}
+function parseProgram(source) {
+  const lines = source.split(/\r?\n/), clean = [], foundLabels = {};
+  for (let i = 0; i < lines.length; i++) {
+    let line = cleanLine(lines[i]);
+    if (!line) continue;
+    const labelMatch = line.match(/^([A-Za-z_][\w']*):\s*(.*)$/);
+    if (labelMatch) {
+      const name = labelMatch[1].toLowerCase();
+      if (foundLabels[name] !== undefined) throw new Error("Line " + (i + 1) + ": label \"" + labelMatch[1] + "\" is defined twice.");
+      foundLabels[name] = clean.length * 4;
+      line = labelMatch[2].trim();
+      if (!line) continue;
+    }
+    clean.push({ text: line, sourceLine: i + 1 });
+  }
+  return { instructions: clean, labels: foundLabels };
+}
+function parseOffset(s) {
+  const m = s.match(/^(.+?)\s*\(\s*([^)]+)\s*\)$/);
+  if (!m) throw new Error("Expected offset(register), for example 8(mokou)");
+  return { offset: numberValue(m[1]), base: parseRegister(m[2]) };
+}
+function resetState() {
+  regs = Array(32).fill(0); regs[2] = 0x400; regs[1] = (instructions ? instructions.length : 0) * 4; memory = {}; pc = 0; executed = 0; halted = false; logs = []; lastPCs = [];
+  render();
+}
+function loadProgram() {
+  try {
+    const source = document.getElementById("program").value;
+    const asmResult = LIMO.assemble(source);
+    listing = asmResult.listing;
+    if (!asmResult.ok) {
+      instructions = []; labels = {}; listing = [];
+      document.getElementById("total").textContent = 0;
+      resetState();
+      document.getElementById("status").textContent = "Error: fix these lines first\n" + asmResult.errors.map(e => "Line " + e.line + ": " + e.message).join("\n");
+      return;
+    }
+    const parsed = parseProgram(source);
+    instructions = parsed.instructions; labels = parsed.labels;
+    document.getElementById("total").textContent = instructions.length;
+    resetState();
+    document.getElementById("status").textContent = "Program loaded. Ready to run.";
+  } catch (e) { document.getElementById("status").textContent = "Error: " + e.message; }
+}
+function getValue(token) {
+  const key = token.trim().toLowerCase();
+  if (labels[key] !== undefined) return labels[key];
+  return numberValue(token);
+}
+function executeOne() {
+  if (halted) return false;
+  if (!instructions || pc % 4 !== 0 || pc < 0 || pc / 4 >= instructions.length) {
+    halted = true;
+    document.getElementById("status").textContent = "Program stopped: PC " + pc + " is outside the program.";
+    render();
+    return false;
+  }
+  const idx = pc / 4, item = instructions[idx], currentPC = pc;
+  const instructionText = item.text.trim();
+  const separator = instructionText.search(/\s/);
+  const op = (separator === -1 ? instructionText : instructionText.slice(0, separator)).toLowerCase();
+  const operandText = separator === -1 ? "" : instructionText.slice(separator).trim();
+  const args = splitArgs(operandText);
+  let nextPC = pc + 4;
+  const need = n => { if (args.length !== n) throw new Error(op + " expects " + n + " operand(s), got " + args.length); };
+  const read = r => regs[parseRegister(r)] | 0;
+  const write = (r, v) => { const n = parseRegister(r); if (n !== 0) regs[n] = u32(v); };
+  const offset = (r, imm) => { const a = (read(r) + imm) | 0; if (a % 4 !== 0) throw new Error("Word address must be divisible by 4: " + a); if (a < 0 || a > 1020) throw new Error("Data memory is 1 KiB: word addresses run from 0 to 1020, not " + a); return a; };
+  const dest = t => labels[t.toLowerCase()] !== undefined ? labels[t.toLowerCase()] : pc + numberValue(t);  // label = absolute address, number = PC-relative offset
+  try {
+    switch (op) {
+      case "bofahh": need(2); write(args[0], numberValue(args[1])); break;
+      case "chechisa": need(2); write(args[0], read(args[1])); break;
+      case "kopanya": need(3); write(args[0], read(args[1]) + read(args[2])); break;
+      case "tlosa": need(3); write(args[0], read(args[1]) - read(args[2])); break;
+      case "eketsa": need(3); write(args[0], read(args[1]) + numberValue(args[2])); break;
+      case "kapa": need(3); write(args[0], read(args[1]) | read(args[2])); break;
+      case "le": need(3); write(args[0], read(args[1]) & read(args[2])); break;
+      case "suthumetsa": need(3); { const sh = numberValue(args[2]); if (sh < 0 || sh > 31) throw new Error("Shift amount must be from 0 to 31"); write(args[0], read(args[1]) << sh); } break;
+      case "bofa": need(2); { const m = parseOffset(args[1]); const a = offset(m.base, m.offset); write(args[0], memory[a] === undefined ? 0 : memory[a]); } break;
+      case "boloka": need(2); { const m = parseOffset(args[1]); const a = offset(m.base, m.offset); memory[a] = u32(read(args[0])); } break;
+      case "lekana": need(3); if (read(args[0]) === read(args[1])) nextPC = dest(args[2]); break;
+      case "ekholo": need(3); if (read(args[0]) >= read(args[1])) nextPC = dest(args[2]); break;
+      case "qhoma": need(2); { const m = parseOffset(args[1]); const target = (read(m.base) + m.offset) & ~1; write(args[0], pc + 4); nextPC = target; } break;
+      default: throw new Error("Unknown instruction: " + op);
+    }
+    regs[0] = 0;
+    logs.unshift({ n: executed + 1, pc: currentPC, text: item.text });
+    executed++; pc = nextPC;
+    if (pc === instructions.length * 4) halted = true;   // fetch past the last instruction: program ends
+    if (executed > 10000) { halted = true; throw new Error("Stopped after 10,000 instructions to prevent an infinite loop."); }
+    render();
+    if (halted) document.getElementById("status").textContent = "Program finished. " + executed + " instruction(s) executed.";
+    else document.getElementById("status").textContent = "Executed: " + item.text;
+    return true;
+  } catch (e) {
+    halted = true;
+    document.getElementById("status").textContent = "Line " + item.sourceLine + " error: " + e.message;
+    render();
+    return false;
+  }
+}
+function render() {
+  document.getElementById("pc").textContent = pc;
+  document.getElementById("count").textContent = executed;
+  const regBox = document.getElementById("registers");
+  if (regBox) {
+    regBox.innerHTML = "";
+    for (let i = 0; i < 32; i++) {
+      const d = document.createElement("div"); d.className = "reg";
+      d.innerHTML = `<b>x${i} · ${registerNames[i]}</b><small>${aliasNames[i]}</small><span>${regs ? regs[i] | 0 : 0}</span>`;
+      regBox.appendChild(d);
+    }
+  }
+  const memBody = document.getElementById("memory");
+  if (memBody) {
+    memBody.innerHTML = "";
+    Object.keys(memory || {}).map(Number).sort((a,b)=>a-b).forEach(a => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${a}</td><td>${memory[a] | 0}</td>`;
+      memBody.appendChild(tr);
+    });
+    if (!Object.keys(memory || {}).length) memBody.innerHTML = '<tr><td colspan="2" class="muted">No values stored yet</td></tr>';
+  }
+  const lb = document.getElementById("listing");
+  if (lb) {
+    const cuts = [[0,7],[7,12],[12,17],[17,20],[20,25],[25,32]];
+    lb.innerHTML = "";
+    (listing || []).forEach((l, i) => {
+      const tr = document.createElement("tr");
+      const cur = !halted && l.pc === pc; if (cur) tr.className = "cur";
+      const c = t => { const td = document.createElement("td"); td.textContent = t; return td; };
+      const bin = document.createElement("td"); bin.className = "bin";
+      cuts.forEach((k, j) => { const sp = document.createElement("span"); sp.className = "f" + j; sp.textContent = l.bin.slice(k[0], k[1]); bin.append(sp, " "); });
+      tr.append(c(cur ? "NEXT" : ""), c(l.pc), c(l.hex), bin, c(l.source));
+      lb.appendChild(tr);
+    });
+  }
+  const logBody = document.getElementById("log");
+  if (logBody) {
+    logBody.innerHTML = "";
+    (logs || []).slice(0,80).forEach(row => {
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"), td2 = document.createElement("td"), td3 = document.createElement("td");
+      td1.textContent = row.n; td2.textContent = row.pc; td3.textContent = row.text;
+      tr.append(td1,td2,td3); logBody.appendChild(tr);
+    });
+  }
+}
+document.getElementById("runBtn").addEventListener("click", () => {
+  loadProgram();
+  if (document.getElementById("status").textContent.startsWith("Error:")) return;
+  let guard = 0;
+  while (!halted && guard++ < 10000) if (!executeOne()) break;
+  if (guard >= 10000 && !halted) { halted = true; document.getElementById("status").textContent = "Stopped: instruction limit reached."; }
+});
+document.getElementById("stepBtn").addEventListener("click", () => {
+  if (!instructions || !instructions.length || halted) loadProgram();   // start fresh after a finish or error
+  if (instructions.length && !halted) executeOne();
+});
+document.getElementById("resetBtn").addEventListener("click", () => loadProgram());
+document.getElementById("exampleBtn").addEventListener("click", () => {
+  document.getElementById("program").value = examples[exampleIndex++ % examples.length];
+  loadProgram();
+});
+loadProgram();
+</script>
+</body>
+</html>
