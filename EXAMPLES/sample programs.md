@@ -16,23 +16,23 @@
 
 loop:
 
-&#x20;   kopanya letsete0, letsete0, sephetho0 # sum += i
+&#x20;   kopanya letsete0, letsete0, sephetho0 
 
-&#x20;   eketsa sephetho0, sephetho0, 1 # i++
+&#x20;   eketsa sephetho0, sephetho0, 1 
 
-&#x20;   tlosa nakoana2, sephetho1, sephetho0 # temp check
+&#x20;   tlosa nakoana2, sephetho1, sephetho0 
 
-&#x20;   le nakoana3, letsete0, sephetho0 # R-type
+&#x20;   le nakoana3, letsete0, sephetho0 
 
-&#x20;   kapa nakoana4, letsete0, nakoana1 # R-type
+&#x20;   kapa nakoana4, letsete0, nakoana1 
 
-&#x20;   boloka letsete0, 8(mokou) # S-type
+&#x20;   boloka letsete0, 8(mokou) 
 
 
 
-&#x20;   ekholo sephetho1, sephetho0, loop # B-type: if N >= i, continue
+&#x20;   ekholo sephetho1, sephetho0, loop 
 
-&#x20;   lekana sephetho0, nakoana1, end # B-type
+&#x20;   lekana sephetho0, nakoana1, end 
 
 
 
